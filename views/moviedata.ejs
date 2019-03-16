@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>MovieDB-<%= data["Title"]%></title>
+</head>
+<body>
+<img src='<%=data["Poster"]%>'>
+<p>Released: <%=data["Released"]%></p>
+<p>Runtime: <%=data["Runtime"]%></p>
+<p>Genre: <%=data["Genre"]%></p>
+<p>Director: <%=data["Director"]%></p>
+<p>Actors: <%=data["Actors"]%></p>
+<p>Brief Plot: <%=data["Plot"]%></p>
+<p>Awards <%=data["Awards"]%></p>
+Ratings
+<ul>
+	<li>IMDB: <%=data["imdbRating"]%></li>
+	<li>Rotten Tomatoes: <%=data["Ratings"][1]["Value"]%></li>
+	<li>Metacritic: <%=data["Metascore"]%></li>
+</ul>
+<p>Box Office: <%=data["BoxOffice"]%></p>
+
+<form action="" method="POST">
+	<input type="submit" name="add" value="Watched">
+</form>
+</body>
+</html>
