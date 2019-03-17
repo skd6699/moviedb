@@ -3,4 +3,10 @@ Module 1: Search using s Ex:keyword iron display all movies with iron in it DONE
 
 Module 2 :Display Title,Released,Runtime,Genre,Director,Actors,Plot,Awards,Poster,Ratings[Internet Movie  Database,RottenTomatoes,Metacritic],BoxOffice DONE
 Stream that movie on Netlfix,prime.tc(Utelly api) //Pending
-Populart Movie Posters //pending        
+Populart Movie Posters //pending
+
+Module 3: RATE AND ADD TO DATABASE //DONE
+
+Module 4:Basic Stats display
+
+

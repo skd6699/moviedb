@@ -2,6 +2,11 @@
 <html>
 <head>
 	<title>MovieDB</title>
+	<style type="text/css">
+		ul{
+			display: none;
+		}
+	</style>
 </head>
 <body>
 	<h1>MovieDB</h1>
@@ -17,8 +22,32 @@
 </form>
 </div>
 <div>
-<header>Popular Movies</header>
 
+<p>View Basic Stats:</p>
+<button>View</button>
+
+<ul>
+	<li>Total No.of Movies:          <%=noofmovies%></li>
+	<li>Total No.of English: Movies: <%=engm%></li>
+	<li>Total No.of Telugu:  Movies: <%=telm%></li>
+	<li>Total No.of Hindi:   Movies: <%=hinm%></li>
+</ul>	
 	</div>
+ <script
+			  src="http://code.jquery.com/jquery-3.3.1.min.js"
+			  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+			  crossorigin="anonymous"></script>
+	
+
+	<script type="text/javascript">
+		$("button").click(function(){
+			$( "ul" ).toggle();
+			if($("button").html()=="View")
+					$("button").html("Hide");
+			else
+			  $("button").html("View");
+					
+		});	
+	</script>
 </body>
 </html>

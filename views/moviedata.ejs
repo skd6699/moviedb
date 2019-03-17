@@ -5,6 +5,7 @@
 </head>
 <body>
 <img src='<%=data["Poster"]%>'>
+<p>Language: <%=data["Language"]%></p>
 <p>Released: <%=data["Released"]%></p>
 <p>Runtime: <%=data["Runtime"]%></p>
 <p>Genre: <%=data["Genre"]%></p>
@@ -15,13 +16,25 @@
 Ratings
 <ul>
 	<li>IMDB: <%=data["imdbRating"]%></li>
+	<%if(data["Ratings"][1]){%>
 	<li>Rotten Tomatoes: <%=data["Ratings"][1]["Value"]%></li>
+	<%}%>
 	<li>Metacritic: <%=data["Metascore"]%></li>
 </ul>
 <p>Box Office: <%=data["BoxOffice"]%></p>
-
+<% var count =0,rating; watched.forEach(function(movie){ %>
+<%	if(data["Title"] == movie["Movie"]){ count=1;  rating = movie["My_Rating"];%>
+<%}});%>
+<%if(count==1){ %>
+<p>You have Watched This - Your Rating : <%=rating%></p>
+<%}else{%>
 <form action="" method="POST">
+	<label for="rating">Your rating</label>
+	<input type="text" name="myrating">
+	<input type="text" name="moviename" value='<%= data["Title"]%>'  hidden>
+	<input type="text" name="language" value='<%= data["Language"]%>' hidden>
 	<input type="submit" name="add" value="Watched">
 </form>
+<%}%>
 </body>
 </html>

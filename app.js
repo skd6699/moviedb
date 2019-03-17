@@ -5,21 +5,27 @@ var unirest = require('unirest');
 var methodOverride = require('method-override');
 var app = module.exports.app = express();
 var http = require('http');
+var mysql = require('mysql');
+const Tmdb = require('tmdb-v3');
+const tmdb = new Tmdb({ apiKey: 'debc0368eb9aad6d905a7962423eafd6' });
 var p = [];
+
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 app.use(express.static("public"));
 app.use(methodOverride("_method"));
+
 var server = http.createServer(app);
 server.setTimeout(10*60*1000);
+
 //MYSQL CONNECTION
-var mysql = require('mysql');
 var db_config = {
   host: "us-cdbr-gcp-east-01.cleardb.net",
   user: "beeba6aa6dd76e",
   password: "ebe18246",
   database: "gcp_cef76366aaa521a46a5b"
 };
+
 var con;
 function handleDisconnect() {
   con = mysql.createConnection(db_config); // Recreate the connection, since
@@ -42,19 +48,28 @@ function handleDisconnect() {
     }
   });
 }
+handleDisconnect();
 
-
-var ids = [],posters = [],titles=[];
 
 app.get("/",function(req, res,next) {
-  
-  con.query("SELECT * FROM watched ", function (err, result, fields) {
-  console.log(result);    
-});
-  res.render("header");
+            con.query("SELECT * FROM watched ", function (err, result, fields) {
 
-});
-
+              var noofmovies=0,hinm=0,telm=0,engm=0;
+                    con.query("SELECT COUNT(*) AS noofmovies FROM watched",function(err,result){
+                    noofmovies = result[0]["noofmovies"];
+                    con.query("SELECT COUNT(Language) AS noofengmovies FROM watched where Language='English'",function(err,result){
+                    engm = result[0]["noofengmovies"];
+                    con.query("SELECT COUNT(Language) AS nooftelmovies FROM watched where Language='Telugu'",function(err,result){
+                    telm = result[0]["nooftelmovies"];
+                    con.query("SELECT COUNT(Language) AS noofhinmovies FROM watched where Language='Hindi'",function(err,result){
+                    hinm = result[0]["noofhinmovies"];
+                       res.render("header",{watched:result,noofmovies:noofmovies,engm:engm,hinm:hinm,telm:telm});
+                    });
+                    }); 
+                    });
+                    });
+            });
+  });
 app.get("/results",function(req,res){
     var query = req.query.search;
     res.redirect('/results/1/'+query);
@@ -68,7 +83,7 @@ var url = "http://www.omdbapi.com/?s=" + query + "&apikey=133b8b1e&page="+page;
         {
             var r = JSON.parse(body);
 
-            res.render("result",{data:r,search:query,ids:ids});
+            res.render("result",{data:r,search:query,});
         }
     });    
 });
@@ -83,20 +98,51 @@ app.get("/app/:iid",function(req,res){
         if(!error && response.statusCode == 200)
         {
             var r = JSON.parse(body);
-            console.log(r);
-            // res.send(r);
-            res.render("moviedata",{data:r});
+            // console.log(r);
+            con.query("SELECT * FROM watched ", function (err, result, fields) {
+            // console.log(result);    
+            res.render("moviedata",{data:r,watched:result});
+            });
+            
         }
     });
+});
+app.post("/app/:iid",function(req,res){
+  var today = new Date();
+  var iid = req.params.iid;
+var dd = today.getDate();
+var mm = today.getMonth() + 1; //January is 0!
+var yyyy = today.getFullYear();
+if (dd < 10) {
+  dd = '0' + dd;
+} 
+if (mm < 10) {
+  mm = '0' + mm;
+} 
+var count = 0;
+var today = yyyy + '-' + mm + '-' + dd;
+console.log(today);
+var movie = req.body.moviename;
+var myrating = req.body.myrating;
+console.log(typeof(req.body.myrating));
+var str = req.body.language;
+if(/[,\-]/.test(str) == true)
+str.substring(0,str.indexOf(","));
+var sql = "INSERT INTO watched (Movie,Language,My_Rating,Date) VALUES ('" + movie + "','" + str + "','" + myrating + "','" + today + "')";
+  con.query(sql, function (err, result) {
+    if (err) throw err;
+    console.log("1 record inserted");
+  });
+res.redirect("/app/"+iid);
 });
 
 
 //http://www.omdbapi.com/?i=tt3896198&apikey=133b8b1e
-handleDisconnect();
+
 
 //SERVER
 server.listen(3000);
-console.log('movie app server started %s', server.address().port);
+console.log('movie app server started %s');
 //debc0368eb9aad6d905a7962423eafd6
 server.on('connection', function(socket) {
   socket.setTimeout(600 * 60 * 1000); // now works perfectly...
