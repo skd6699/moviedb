@@ -9,12 +9,16 @@ var mysql = require('mysql');
 const Tmdb = require('tmdb-v3');
 const tmdb = new Tmdb({ apiKey: 'debc0368eb9aad6d905a7962423eafd6' });
 var p = [];
-
+const bcrypt = require('bcrypt');
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 app.use(express.static("public"));
 app.use(methodOverride("_method"));
-
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
 var server = http.createServer(app);
 server.setTimeout(10*60*1000);
 
@@ -138,6 +142,98 @@ res.redirect("/app/"+iid);
 
 
 //http://www.omdbapi.com/?i=tt3896198&apikey=133b8b1e
+
+//AUTH ROUTES
+app.get("/register",function(req,res){
+  res.render("register.ejs");
+});
+app.post("/register",function(req,res){
+    var today = new Date();
+  var users={
+    "Name":req.body.name,
+    "email":req.body.email,
+    "password":req.body.password,
+    "created":today,
+    "modified":today
+  }
+     bcrypt.hash(users.password, 10, function(err, hash){
+            if(err) console.log(err);
+            users.password = hash;
+            console.log(users.password); //shows hashed password
+                              con.query('INSERT INTO users SET ?',users, function (error, results, fields) {
+                                if (error) {
+                                  console.log("error ocurred",error);
+                                  res.send({
+                                    "code":400,
+                                    "failed":"error ocurred"
+                                  })
+                                }else{
+                                  console.log('The solution is: ', results);
+                                  var sql = "CREATE USER '"+req.body.name+"' @'localhost' IDENTIFIED BY '"+req.body.password+"'";
+                                 con.query(sql,function(error,results,fields){
+                                  console.log("USER CREATED");
+                                  console.log("Registered");
+                              res.redirect("/");
+                                 });
+                              }
+
+                            });
+
+            //>>query logic should go here.
+        });
+});
+app.get("/login",function(req,res){
+res.render("login");
+});
+
+app.post("/login",function(req,res){
+
+   var email= req.body.email;
+  var password = req.body.password;
+  
+  con.query('SELECT * FROM users WHERE email = ?',[email], function (error, results, fields) {
+  if (error) {
+    // console.log("error ocurred",error);
+    res.send({
+      "code":400,
+      "failed":"error ocurred"
+    })
+  }else{
+    // console.log('The solution is: ', results);
+    if(results.length >0){
+
+ bcrypt.compare(req.body.password, results[0].password, function(err, result) {
+         console.log('>>>>>> ', password)
+         console.log('>>>>>> ', results[0].password)
+         if(result) {
+           // return res.send();
+  console.log("Logged in");
+res.redirect("/");
+         }
+         else {
+           return res.status(400).send();
+         }
+});}
+     
+    else{
+      res.send({
+        "code":204,
+        "success":"Email does not exits"
+          });
+    }
+  }
+  });
+});
+
+
+
+
+
+
+
+
+
+
 
 
 //SERVER
