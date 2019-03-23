@@ -8,8 +8,15 @@ var http = require('http');
 var mysql = require('mysql');
 const Tmdb = require('tmdb-v3');
 const tmdb = new Tmdb({ apiKey: 'debc0368eb9aad6d905a7962423eafd6' });
+    var flash             = require('connect-flash');
+    var crypto            = require('crypto');
+    var passport          = require('passport');
+    var LocalStrategy     = require('passport-local').Strategy;
+    var session              = require('express-session');
+    var MySQLStore = require('express-mysql-session')(session);
 var p = [];
 const bcrypt = require('bcrypt');
+
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 app.use(express.static("public"));
@@ -19,6 +26,10 @@ app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
 });
+
+app.use(passport.initialize());
+app.use(passport.session());
+
 var server = http.createServer(app);
 server.setTimeout(10*60*1000);
 
@@ -28,6 +39,7 @@ var db_config = {
   user: "beeba6aa6dd76e",
   password: "ebe18246",
   database: "gcp_cef76366aaa521a46a5b"
+  
 };
 
 var con;
@@ -55,6 +67,30 @@ function handleDisconnect() {
 handleDisconnect();
 
 
+    var sessionStore = new MySQLStore({   clearExpired: true,
+    // How frequently expired sessions will be cleared; milliseconds:
+    checkExpirationInterval: 900000,
+    // The maximum age of a valid session; milliseconds:
+    expiration: 86400000,
+    connectionLimit: 1,
+    createDatabaseTable: true,
+        charset: 'utf8mb4_bin',
+    schema: {
+        tableName: 'sessions',
+        columnNames: {
+            session_id: 'session_id',
+            expires: 'expires',
+            data: 'data'
+        }
+    },
+    endConnectionOnClose: true}/* session store options */, con);
+    app.use(session({
+    key:"session",
+    secret:"WinterSoldier",
+    store:sessionStore,
+    resave: false,
+    saveUninitialized: false
+}));
 app.get("/",function(req, res,next) {
             con.query("SELECT * FROM watched ", function (err, result, fields) {
 
@@ -141,6 +177,48 @@ res.redirect("/app/"+iid);
 });
 
 
+app.get("/stats",function(req, res,next) {
+
+              var topratedmovies=0,hinm=0,dt,engm=0;
+                    con.query("SELECT Movie AS topratedmovies FROM watched where My_Rating=10",function(err,result){
+                    topratedmovies = result;
+                    con.query("SELECT Date AS dates FROM watched where Date!='null'",function(err,result){
+                    dates = result;
+                    dates.forEach(function(date){
+                      dt =date["dates"].toString();
+                      console.log(dt.substring(11,16));
+                      
+                    });
+                    con.query("SELECT COUNT(Language) AS nooftelmovies FROM watched where Language='Telugu'",function(err,result){
+                    telm = result[0]["nooftelmovies"];
+                    con.query("SELECT COUNT(Language) AS noofhinmovies FROM watched where Language='Hindi'",function(err,result){
+                    hinm = result[0]["noofhinmovies"];
+                       res.render("stats",{topratedmovies:topratedmovies,dates:dates});
+                    });
+                    }); 
+                    });
+                    });
+
+  });
+
+app.post("/stats",function(req, res,next) {
+              var rating = req.body.rating;
+              var ratedmovies=0,hinm=0,telm=0,engm=0;
+                    con.query("SELECT Movie AS ratedmovies FROM watched where My_Rating="+rating,function(err,result){
+                    ratedmovies = result;
+                    con.query("SELECT COUNT(Language) AS noofengmovies FROM watched where Language='English'",function(err,result){
+                    engm = result[0]["noofengmovies"];
+                    con.query("SELECT COUNT(Language) AS nooftelmovies FROM watched where Language='Telugu'",function(err,result){
+                    telm = result[0]["nooftelmovies"];
+                    con.query("SELECT COUNT(Language) AS noofhinmovies FROM watched where Language='Hindi'",function(err,result){
+                    hinm = result[0]["noofhinmovies"];
+                    console.log(ratedmovies);
+                       res.render("stats",{ratedmovies:ratedmovies});
+                    });
+                    }); 
+                    });
+                    });
+            });
 //http://www.omdbapi.com/?i=tt3896198&apikey=133b8b1e
 
 //AUTH ROUTES
@@ -155,6 +233,7 @@ app.post("/register",function(req,res){
     "password":req.body.password,
     "created":today,
     "modified":today
+  
   }
      bcrypt.hash(users.password, 10, function(err, hash){
             if(err) console.log(err);
@@ -169,12 +248,9 @@ app.post("/register",function(req,res){
                                   })
                                 }else{
                                   console.log('The solution is: ', results);
-                                  var sql = "CREATE USER '"+req.body.name+"' @'localhost' IDENTIFIED BY '"+req.body.password+"'";
-                                 con.query(sql,function(error,results,fields){
-                                  console.log("USER CREATED");
                                   console.log("Registered");
+                                  
                               res.redirect("/");
-                                 });
                               }
 
                             });
@@ -208,6 +284,8 @@ app.post("/login",function(req,res){
          if(result) {
            // return res.send();
   console.log("Logged in");
+
+                                  var sessionStore = new MySQLStore({}/* session store options */, con);
 res.redirect("/");
          }
          else {
@@ -227,7 +305,10 @@ res.redirect("/");
 
 
 
-
+app.get("/logout",function(req,res){
+  sessionStore.close();
+  res.redirect("/");
+})
 
 
 

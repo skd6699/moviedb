@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Statistics</title>
+</head>
+<body>
+	Advanced Stats:
+	<p>Top Rated Movies :
+	<%if(locals.topratedmovies){topratedmovies.forEach(function (movie){%>
+	<p><%=movie["topratedmovies"]%></p>
+<%});}%> 
+	</p>
+	<form action="" method="POST">
+	<label for="rating">Search rating</label>
+	<input type="text" name="rating">
+ 	<input type="submit" name="add" value="Search">
+	<%if(locals.ratedmovies){ratedmovies.forEach(function(movie){%>
+	<p><%=movie["ratedmovies"]%></p>
+<%});}%>
+</form>
+</body>
+</html>
