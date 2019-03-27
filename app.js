@@ -158,17 +158,21 @@ if (dd < 10) {
 } 
 if (mm < 10) {
   mm = '0' + mm;
-} 
+}
+let genre = req.body.genre;
+let runtime = req.body.runtime;
+console.log(runtime);
+runtime = parseInt(runtime,10); 
+console.log(runtime);
 var count = 0;
 var today = yyyy + '-' + mm + '-' + dd;
 console.log(today);
 var movie = req.body.moviename;
 var myrating = req.body.myrating;
-console.log(typeof(req.body.myrating));
 var str = req.body.language;
 if(/[,\-]/.test(str) == true)
-str.substring(0,str.indexOf(","));
-var sql = "INSERT INTO watched (Movie,Language,My_Rating,Date) VALUES ('" + movie + "','" + str + "','" + myrating + "','" + today + "')";
+str = str.substring(0,str.indexOf(","));
+var sql = "INSERT INTO watched (Movie,Language,My_Rating,Date,Runtime,Genre) VALUES ('" + movie + "','" + str + "','" + myrating + "','" + today + "','"+runtime+"','"+genre+"')";
   con.query(sql, function (err, result) {
     if (err) throw err;
     console.log("1 record inserted");
@@ -179,46 +183,47 @@ res.redirect("/app/"+iid);
 
 app.get("/stats",function(req, res,next) {
 
-              var topratedmovies=0,hinm=0,dt,engm=0;
+              var topratedmovies=0,recent,dt,yearm=0,y=0;
+              let m;
                     con.query("SELECT Movie AS topratedmovies FROM watched where My_Rating=10",function(err,result){
                     topratedmovies = result;
-                    con.query("SELECT Date AS dates FROM watched where Date!='null'",function(err,result){
-                    dates = result;
-                    dates.forEach(function(date){
-                      dt =date["dates"].toString();
-                      console.log(dt.substring(11,16));
-                      
+                    con.query("SELECT Movie,Language,My_Rating FROM watched ORDER BY Date DESC LIMIT 5;",function(err,result){
+                    recent = result;
+                    con.query("SELECT YEAR(Date) AS y,COUNT(MOVIE) as yearmovies,SUM(Runtime) as yearruntime FROM watched where Date!='null' GROUP BY y",function(err,result){
+                     y = result;
+                    con.query("SELECT YEAR(Date) AS y,MONTH(Date) AS m,COUNT(MOVIE) as yearmovies ,SUM(Runtime) as monthruntime FROM watched where Date!='null' GROUP BY y,m",function(err,result){
+                     m = result;
+                    res.render("stats",{topratedmovies:topratedmovies,recent:recent,yearmovies:y,monthmovies:m});
                     });
-                    con.query("SELECT COUNT(Language) AS nooftelmovies FROM watched where Language='Telugu'",function(err,result){
-                    telm = result[0]["nooftelmovies"];
-                    con.query("SELECT COUNT(Language) AS noofhinmovies FROM watched where Language='Hindi'",function(err,result){
-                    hinm = result[0]["noofhinmovies"];
-                       res.render("stats",{topratedmovies:topratedmovies,dates:dates});
                     });
                     }); 
                     });
                     });
-
-  });
 
 app.post("/stats",function(req, res,next) {
-              var rating = req.body.rating;
-              var ratedmovies=0,hinm=0,telm=0,engm=0;
+               var ratedmovies=0,recent,y,dates,dt,m;
+                    if(req.body.rating){
+                      var rating = req.body.rating;
                     con.query("SELECT Movie AS ratedmovies FROM watched where My_Rating="+rating,function(err,result){
-                    ratedmovies = result;
-                    con.query("SELECT COUNT(Language) AS noofengmovies FROM watched where Language='English'",function(err,result){
-                    engm = result[0]["noofengmovies"];
-                    con.query("SELECT COUNT(Language) AS nooftelmovies FROM watched where Language='Telugu'",function(err,result){
-                    telm = result[0]["nooftelmovies"];
-                    con.query("SELECT COUNT(Language) AS noofhinmovies FROM watched where Language='Hindi'",function(err,result){
-                    hinm = result[0]["noofhinmovies"];
-                    console.log(ratedmovies);
-                       res.render("stats",{ratedmovies:ratedmovies});
+                      ratedmovies = result;
+                      con.query("SELECT Movie,Language,My_Rating FROM watched ORDER BY Date DESC LIMIT 5;",function(err,result){
+                        recent = result;
+                        con.query("SELECT YEAR(Date) AS y,COUNT(MOVIE)as yearmovies,SUM(Runtime) as yearruntime FROM watched where Date!='null' GROUP BY y",function(err,result){
+                        y = result;
+                        con.query("SELECT YEAR(Date) AS y,MONTH(Date) AS m,COUNT(MOVIE) as yearmovies,SUM(Runtime) as monthruntime FROM watched where Date!='null' GROUP BY y,m",function(err,result){
+                     m = result;
+                    res.render("stats",{ratedmovies:ratedmovies,recent:recent,yearmovies:y,monthmovies:m});
                     });
-                    }); 
-                    });
-                    });
-            });
+                    
+                             });
+                      });
+                      
+                  });}
+                    else 
+                      res.redirect("/stats");
+              
+            }); 
+                  
 //http://www.omdbapi.com/?i=tt3896198&apikey=133b8b1e
 
 //AUTH ROUTES
