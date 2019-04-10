@@ -16,7 +16,42 @@ const tmdb = new Tmdb({ apiKey: 'debc0368eb9aad6d905a7962423eafd6' });
     var MySQLStore = require('express-mysql-session')(session);
 var p = [];
 const bcrypt = require('bcrypt');
+const {google} = require('googleapis');
+// const oauth2Client = new google.auth.OAuth2(
+//   '577975357388-euj5306150gtj7p7rl54k9akt7o064bd.apps.googleusercontent.com',
+//   'NP-qYGKKIfUZD9yTzpGeWioN',
+//   'http://localhost:3000/'
+// );
+var GoogleStrategy = require('passport-google-oauth20').Strategy;
 
+passport.use(new GoogleStrategy({
+    clientID: '577975357388-euj5306150gtj7p7rl54k9akt7o064bd.apps.googleusercontent.com',
+    clientSecret: 'NP-qYGKKIfUZD9yTzpGeWioN',
+    callbackURL: "http://localhost:3000/auth/google/callback"
+  },function(accessToken, refreshToken, profile, done) {
+    console.log(profile);
+    var users={
+    "Name":profile.displayName,
+    "id":profile.id
+  }
+  console.log(profile.id);
+  // var query = "SELECT COUNT(*) from users where id ="+users.id;
+  // con.query(query,function(err,result){
+  //   console.log(result);
+  // });
+
+con.query('INSERT INTO users SET ?',users, function (error, results, fields) {
+                                if (error) {
+                                  console.log("error ocurred",error);
+                              }else{
+                                  console.log('The solution is: ', results);
+                                  console.log("Registered");   
+                                 }
+  
+  });
+                            }));
+const cookieParser = require('cookie-parser'),
+    cookieSession = require('cookie-session');
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 app.use(express.static("public"));
@@ -26,7 +61,12 @@ app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
 });
+app.use(cookieSession({
+    name: 'session',
+    keys: ['123']
+}));
 
+app.use(cookieParser());
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -92,24 +132,16 @@ handleDisconnect();
     saveUninitialized: false
 }));
 app.get("/",function(req, res,next) {
-            con.query("SELECT * FROM watched ", function (err, result, fields) {
-
-              var noofmovies=0,hinm=0,telm=0,engm=0;
+                    let noofmovies,movies;
                     con.query("SELECT COUNT(*) AS noofmovies FROM watched",function(err,result){
                     noofmovies = result[0]["noofmovies"];
-                    con.query("SELECT COUNT(Language) AS noofengmovies FROM watched where Language='English'",function(err,result){
-                    engm = result[0]["noofengmovies"];
-                    con.query("SELECT COUNT(Language) AS nooftelmovies FROM watched where Language='Telugu'",function(err,result){
-                    telm = result[0]["nooftelmovies"];
-                    con.query("SELECT COUNT(Language) AS noofhinmovies FROM watched where Language='Hindi'",function(err,result){
-                    hinm = result[0]["noofhinmovies"];
-                       res.render("header",{watched:result,noofmovies:noofmovies,engm:engm,hinm:hinm,telm:telm});
-                    });
-                    }); 
+                    con.query("SELECT DISTINCT(Language) as lang ,Count(Movie) as count from watched group by lang;",function(err,result){
+                    movies = result;
+                       res.render("header",{noofmovies:noofmovies,movies:movies});
                     });
                     });
             });
-  });
+
 app.get("/results",function(req,res){
     var query = req.query.search;
     res.redirect('/results/1/'+query);
@@ -179,7 +211,17 @@ var sql = "INSERT INTO watched (Movie,Language,My_Rating,Date,Runtime,Genre) VAL
   });
 res.redirect("/app/"+iid);
 });
+app.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile'] }));
 
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    // req.session.token = req.user.token;
+    console.log("logged in");
+    res.redirect('/');
+  });
 
 app.get("/stats",function(req, res,next) {
 
@@ -192,7 +234,7 @@ app.get("/stats",function(req, res,next) {
                     con.query("SELECT YEAR(Date) AS y,COUNT(MOVIE) as yearmovies,SUM(Runtime) as yearruntime FROM watched where Date!='null' GROUP BY y",function(err,result){
                      y = result;
                     con.query("SELECT YEAR(Date) AS y,MONTH(Date) AS m,COUNT(MOVIE) as yearmovies ,SUM(Runtime) as monthruntime FROM watched where Date!='null' GROUP BY y,m",function(err,result){
-                     m = result;
+                     m = result;               
                     res.render("stats",{topratedmovies:topratedmovies,recent:recent,yearmovies:y,monthmovies:m});
                     });
                     });
@@ -212,7 +254,7 @@ app.post("/stats",function(req, res,next) {
                         y = result;
                         con.query("SELECT YEAR(Date) AS y,MONTH(Date) AS m,COUNT(MOVIE) as yearmovies,SUM(Runtime) as monthruntime FROM watched where Date!='null' GROUP BY y,m",function(err,result){
                      m = result;
-                    res.render("stats",{ratedmovies:ratedmovies,recent:recent,yearmovies:y,monthmovies:m});
+                                         res.render("stats",{ratedmovies:ratedmovies,recent:recent,yearmovies:y,monthmovies:m});
                     });
                     
                              });
@@ -309,11 +351,10 @@ res.redirect("/");
 });
 
 
-
-app.get("/logout",function(req,res){
-  sessionStore.close();
-  res.redirect("/");
-})
+app.get('/logout', function(req, res) {
+       req.logout();
+        res.redirect('');
+});
 
 
 
