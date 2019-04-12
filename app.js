@@ -15,43 +15,11 @@ const tmdb = new Tmdb({ apiKey: 'debc0368eb9aad6d905a7962423eafd6' });
     var session              = require('express-session');
     var MySQLStore = require('express-mysql-session')(session);
 var p = [];
-const bcrypt = require('bcrypt');
-const {google} = require('googleapis');
-// const oauth2Client = new google.auth.OAuth2(
-//   '577975357388-euj5306150gtj7p7rl54k9akt7o064bd.apps.googleusercontent.com',
-//   'NP-qYGKKIfUZD9yTzpGeWioN',
-//   'http://localhost:3000/'
-// );
-var GoogleStrategy = require('passport-google-oauth20').Strategy;
-
-passport.use(new GoogleStrategy({
-    clientID: '577975357388-euj5306150gtj7p7rl54k9akt7o064bd.apps.googleusercontent.com',
-    clientSecret: 'NP-qYGKKIfUZD9yTzpGeWioN',
-    callbackURL: "http://localhost:3000/auth/google/callback"
-  },function(accessToken, refreshToken, profile, done) {
-    console.log(profile);
-    var users={
-    "Name":profile.displayName,
-    "id":profile.id
-  }
-  console.log(profile.id);
-  // var query = "SELECT COUNT(*) from users where id ="+users.id;
-  // con.query(query,function(err,result){
-  //   console.log(result);
-  // });
-
-con.query('INSERT INTO users SET ?',users, function (error, results, fields) {
-                                if (error) {
-                                  console.log("error ocurred",error);
-                              }else{
-                                  console.log('The solution is: ', results);
-                                  console.log("Registered");   
-                                 }
-  
-  });
-                            }));
 const cookieParser = require('cookie-parser'),
     cookieSession = require('cookie-session');
+const bcrypt = require('bcrypt');
+const {google} = require('googleapis');
+var GoogleStrategy = require('passport-google-oauth20').Strategy;
 app.use(bodyParser.urlencoded({extended: true}));
 app.set("view engine", "ejs");
 app.use(express.static("public"));
@@ -62,13 +30,73 @@ app.use(function(req, res, next) {
     next();
 });
 app.use(cookieSession({
+    maxAge: 24*60*60*1000,
     name: 'session',
     keys: ['123']
 }));
-
 app.use(cookieParser());
 app.use(passport.initialize());
 app.use(passport.session());
+
+
+    passport.serializeUser(function(user, done) {
+    done(null, user.id);
+    });
+
+    // used to deserialize the user
+    passport.deserializeUser(function(id, done) {
+    con.query("select * from users where id = '"+id+"'",function(err,rows){ 
+      console.log(rows[0]);
+      if(err){
+        console.log(err);
+        return done(null,err);
+    }
+    done(null, rows[0]);
+    });
+    });
+
+   passport.use(new GoogleStrategy({
+    clientID: '577975357388-euj5306150gtj7p7rl54k9akt7o064bd.apps.googleusercontent.com',
+    clientSecret: 'NP-qYGKKIfUZD9yTzpGeWioN',
+    callbackURL: "http://localhost:3000/auth/google/callback"
+  },function(accessToken,refreshToken,profile,done) {    
+    var users={
+    "Name":profile.displayName,
+    "id":profile.id
+  };
+  console.log(users.id);
+   var query = "SELECT *,Count(*) as Count from users where id ='"+users.id+"'";
+   console.log(query);
+   con.query(query,function(err,result){
+    if(result[0]["Count"]>0)
+      {
+        console.log("User is: "+result[0]["Name"]);
+                                  return done(null, users);
+      }
+    else{
+      var sql = "INSERT INTO users (Name,id) VALUES ('"+users.Name+"','"+users.id+"')";
+      con.query(sql, function (err, result) {
+                                if (err) {
+                                  console.log("error ocurred",err);
+                              }else{
+                                  console.log('The solution is: ', result);
+                                  var q = "CREATE TABLE `"+users.Name+users.id+"` (`Sno` INT(11) NOT NULL AUTO_INCREMENT,`Movie` VARCHAR(45) NULL,`My_Rating` INT(11) NULL,`Language` VARCHAR(45) NULL,`Date` DATE NULL,`Runtime` INT(11) NULL,`Genre` VARCHAR(45) NULL,`Poster` VARCHAR(120) NULL,PRIMARY KEY (`Sno`),UNIQUE INDEX `Movie_UNIQUE` (`Movie` ASC));";
+                                  console.log("Registered");
+                                  console.log(q);
+                                  con.query(q,function(err,result){
+                                    if(err)
+                                      console.log(err);
+                                    console.log(result);
+                                    console.log("table created");
+                                  });       
+                                  return done(null, users);
+                                 }
+  
+  });
+    }
+  });
+// `gcp_cef76366aaa521a46a5b`
+                            }));
 
 var server = http.createServer(app);
 server.setTimeout(10*60*1000);
@@ -78,8 +106,7 @@ var db_config = {
   host: "us-cdbr-gcp-east-01.cleardb.net",
   user: "beeba6aa6dd76e",
   password: "ebe18246",
-  database: "gcp_cef76366aaa521a46a5b"
-  
+  database: "gcp_cef76366aaa521a46a5b" 
 };
 
 var con;
@@ -105,41 +132,24 @@ function handleDisconnect() {
   });
 }
 handleDisconnect();
-
-
-    var sessionStore = new MySQLStore({   clearExpired: true,
-    // How frequently expired sessions will be cleared; milliseconds:
-    checkExpirationInterval: 900000,
-    // The maximum age of a valid session; milliseconds:
-    expiration: 86400000,
-    connectionLimit: 1,
-    createDatabaseTable: true,
-        charset: 'utf8mb4_bin',
-    schema: {
-        tableName: 'sessions',
-        columnNames: {
-            session_id: 'session_id',
-            expires: 'expires',
-            data: 'data'
-        }
-    },
-    endConnectionOnClose: true}/* session store options */, con);
-    app.use(session({
-    key:"session",
-    secret:"WinterSoldier",
-    store:sessionStore,
-    resave: false,
-    saveUninitialized: false
-}));
 app.get("/",function(req, res,next) {
                     let noofmovies,movies;
-                    con.query("SELECT COUNT(*) AS noofmovies FROM watched",function(err,result){
+                    if(req.user){
+                      var q = "SELECT COUNT(*) AS noofmovies FROM `"+req.user.Name.toLowerCase()+req.user.id+"`;";
+                      console.log(q);
+                    con.query(q,function(err,result){
+                      console.log(result);
                     noofmovies = result[0]["noofmovies"];
-                    con.query("SELECT DISTINCT(Language) as lang ,Count(Movie) as count from watched group by lang;",function(err,result){
+                    q = "SELECT DISTINCT(Language) as lang ,Count(Movie) as count from `"+req.user.Name.toLowerCase()+req.user.id+"` group by lang;"
+                    con.query(q,function(err,result){
                     movies = result;
-                       res.render("header",{noofmovies:noofmovies,movies:movies});
+                       res.render("header",{noofmovies:noofmovies,movies:movies,user:req.user});
                     });
-                    });
+                    });}
+                    else{
+                      res.render("header",{user:req.user});  
+                    }
+
             });
 
 app.get("/results",function(req,res){
@@ -171,15 +181,19 @@ app.get("/app/:iid",function(req,res){
         {
             var r = JSON.parse(body);
             // console.log(r);
-            con.query("SELECT * FROM watched ", function (err, result, fields) {
+            if(req.user){
+            con.query("SELECT * FROM `"+req.user.Name.toLowerCase()+req.user.id+"`", function (err, result, fields) {
             // console.log(result);    
-            res.render("moviedata",{data:r,watched:result});
-            });
+            res.render("moviedata",{data:r,watched:result,user:req.user});
+            });}
+            else{
+              res.render("moviedata",{data:r,user:req.user});
+            }
             
         }
     });
 });
-app.post("/app/:iid",function(req,res){
+app.post("/app/:iid",isLoggedIn,function(req,res){
   var today = new Date();
   var iid = req.params.iid;
 var dd = today.getDate();
@@ -204,7 +218,7 @@ var myrating = req.body.myrating;
 var str = req.body.language;
 if(/[,\-]/.test(str) == true)
 str = str.substring(0,str.indexOf(","));
-var sql = "INSERT INTO watched (Movie,Language,My_Rating,Date,Runtime,Genre) VALUES ('" + movie + "','" + str + "','" + myrating + "','" + today + "','"+runtime+"','"+genre+"')";
+var sql = "INSERT INTO `"+req.user.Name.toLowerCase()+req.user.id+"` (Movie,Language,My_Rating,Date,Runtime,Genre) VALUES ('" + movie + "','" + str + "','" + myrating + "','" + today + "','"+runtime+"','"+genre+"')";
   con.query(sql, function (err, result) {
     if (err) throw err;
     console.log("1 record inserted");
@@ -219,21 +233,22 @@ app.get('/auth/google/callback',
   function(req, res) {
     // Successful authentication, redirect home.
     // req.session.token = req.user.token;
+    // console.log(req.user);
     console.log("logged in");
     res.redirect('/');
   });
 
-app.get("/stats",function(req, res,next) {
+app.get("/stats",isLoggedIn,function(req, res,next) {
 
               var topratedmovies=0,recent,dt,yearm=0,y=0;
               let m;
-                    con.query("SELECT Movie AS topratedmovies FROM watched where My_Rating=10",function(err,result){
+                    con.query("SELECT Movie AS topratedmovies FROM `"+req.user.Name.toLowerCase()+req.user.id+"` where My_Rating=10",function(err,result){
                     topratedmovies = result;
-                    con.query("SELECT Movie,Language,My_Rating FROM watched ORDER BY Date DESC LIMIT 5;",function(err,result){
+                    con.query("SELECT Movie,Language,My_Rating FROM `"+req.user.Name.toLowerCase()+req.user.id+"` ORDER BY Date DESC LIMIT 5;",function(err,result){
                     recent = result;
-                    con.query("SELECT YEAR(Date) AS y,COUNT(MOVIE) as yearmovies,SUM(Runtime) as yearruntime FROM watched where Date!='null' GROUP BY y",function(err,result){
+                    con.query("SELECT YEAR(Date) AS y,COUNT(MOVIE) as yearmovies,SUM(Runtime) as yearruntime FROM `"+req.user.Name.toLowerCase()+req.user.id+"` where Date!='null' GROUP BY y",function(err,result){
                      y = result;
-                    con.query("SELECT YEAR(Date) AS y,MONTH(Date) AS m,COUNT(MOVIE) as yearmovies ,SUM(Runtime) as monthruntime FROM watched where Date!='null' GROUP BY y,m",function(err,result){
+                    con.query("SELECT YEAR(Date) AS y,MONTH(Date) AS m,COUNT(MOVIE) as yearmovies ,SUM(Runtime) as monthruntime FROM `"+req.user.Name.toLowerCase()+req.user.id+"` where Date!='null' GROUP BY y,m",function(err,result){
                      m = result;               
                     res.render("stats",{topratedmovies:topratedmovies,recent:recent,yearmovies:y,monthmovies:m});
                     });
@@ -242,17 +257,17 @@ app.get("/stats",function(req, res,next) {
                     });
                     });
 
-app.post("/stats",function(req, res,next) {
+app.post("/stats",isLoggedIn,function(req, res,next) {
                var ratedmovies=0,recent,y,dates,dt,m;
                     if(req.body.rating){
                       var rating = req.body.rating;
-                    con.query("SELECT Movie AS ratedmovies FROM watched where My_Rating="+rating,function(err,result){
+                    con.query("SELECT Movie AS ratedmovies FROM `"+req.user.Name.toLowerCase()+req.user.id+"` where My_Rating="+rating,function(err,result){
                       ratedmovies = result;
-                      con.query("SELECT Movie,Language,My_Rating FROM watched ORDER BY Date DESC LIMIT 5;",function(err,result){
+                      con.query("SELECT Movie,Language,My_Rating FROM `"+req.user.Name.toLowerCase()+req.user.id+"` ORDER BY Date DESC LIMIT 5;",function(err,result){
                         recent = result;
-                        con.query("SELECT YEAR(Date) AS y,COUNT(MOVIE)as yearmovies,SUM(Runtime) as yearruntime FROM watched where Date!='null' GROUP BY y",function(err,result){
+                        con.query("SELECT YEAR(Date) AS y,COUNT(MOVIE)as yearmovies,SUM(Runtime) as yearruntime FROM `"+req.user.Name.toLowerCase()+req.user.id+"` where Date!='null' GROUP BY y",function(err,result){
                         y = result;
-                        con.query("SELECT YEAR(Date) AS y,MONTH(Date) AS m,COUNT(MOVIE) as yearmovies,SUM(Runtime) as monthruntime FROM watched where Date!='null' GROUP BY y,m",function(err,result){
+                        con.query("SELECT YEAR(Date) AS y,MONTH(Date) AS m,COUNT(MOVIE) as yearmovies,SUM(Runtime) as monthruntime FROM `"+req.user.Name.toLowerCase()+req.user.id+"` where Date!='null' GROUP BY y,m",function(err,result){
                      m = result;
                                          res.render("stats",{ratedmovies:ratedmovies,recent:recent,yearmovies:y,monthmovies:m});
                     });
@@ -268,100 +283,26 @@ app.post("/stats",function(req, res,next) {
                   
 //http://www.omdbapi.com/?i=tt3896198&apikey=133b8b1e
 
-//AUTH ROUTES
-app.get("/register",function(req,res){
-  res.render("register.ejs");
+//profileroutes
+app.get("/profile",isLoggedIn,function(req,res){
+res.send("You are logged in "+req.user.Name);
 });
-app.post("/register",function(req,res){
-    var today = new Date();
-  var users={
-    "Name":req.body.name,
-    "email":req.body.email,
-    "password":req.body.password,
-    "created":today,
-    "modified":today
-  
-  }
-     bcrypt.hash(users.password, 10, function(err, hash){
-            if(err) console.log(err);
-            users.password = hash;
-            console.log(users.password); //shows hashed password
-                              con.query('INSERT INTO users SET ?',users, function (error, results, fields) {
-                                if (error) {
-                                  console.log("error ocurred",error);
-                                  res.send({
-                                    "code":400,
-                                    "failed":"error ocurred"
-                                  })
-                                }else{
-                                  console.log('The solution is: ', results);
-                                  console.log("Registered");
-                                  
-                              res.redirect("/");
-                              }
 
-                            });
-
-            //>>query logic should go here.
-        });
-});
 app.get("/login",function(req,res){
 res.render("login");
 });
 
-app.post("/login",function(req,res){
-
-   var email= req.body.email;
-  var password = req.body.password;
-  
-  con.query('SELECT * FROM users WHERE email = ?',[email], function (error, results, fields) {
-  if (error) {
-    // console.log("error ocurred",error);
-    res.send({
-      "code":400,
-      "failed":"error ocurred"
-    })
-  }else{
-    // console.log('The solution is: ', results);
-    if(results.length >0){
-
- bcrypt.compare(req.body.password, results[0].password, function(err, result) {
-         console.log('>>>>>> ', password)
-         console.log('>>>>>> ', results[0].password)
-         if(result) {
-           // return res.send();
-  console.log("Logged in");
-
-                                  var sessionStore = new MySQLStore({}/* session store options */, con);
-res.redirect("/");
-         }
-         else {
-           return res.status(400).send();
-         }
-});}
-     
-    else{
-      res.send({
-        "code":204,
-        "success":"Email does not exits"
-          });
-    }
-  }
-  });
-});
-
-
 app.get('/logout', function(req, res) {
        req.logout();
-        res.redirect('');
+        res.redirect('/');
 });
 
-
-
-
-
-
-
+function isLoggedIn(req,res,next){
+    if(req.user){
+        return next();
+    }
+    res.redirect("/login");
+}
 
 //SERVER
 server.listen(3000);

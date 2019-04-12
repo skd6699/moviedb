@@ -9,10 +9,11 @@
 	</style>
 </head>
 <body>
-	<a href="/register">register</a>
-	<a href="/login">login</a>
+	<%if(user){%>
+	<a href="/logout">logout</a>
+	<%}else{%>
 	<a href="/auth/google">Login with Google</a>
-		<a href="/logout">logout</a>
+	<%}%>	
 	<h1>MovieDB</h1>
 	<caption>Statistics like never before.</caption>
 	<div>
@@ -26,16 +27,17 @@
 </form>
 </div>
 <div>
-
+<a href="/stats">Stats</a>
+<%if(user){%>
 <p>View Basic Stats:</p>
 <button>View</button>
-<a href="/stats">Stats</a>
 <ul>
 	<li>Total No.of Movies:          <%=noofmovies%></li>
 	<%movies.forEach(function(movie){%>
 	<li>Total No.of <%=movie["lang"]%> Movies: <%=movie["count"]%></li>
 	<%});%>
 </ul>	
+<%}%>
 	</div>
  <script
 			  src="http://code.jquery.com/jquery-3.3.1.min.js"

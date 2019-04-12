@@ -22,11 +22,23 @@ Ratings
 	<li>Metacritic: <%=data["Metascore"]%></li>
 </ul>
 <p>Box Office: <%=data["BoxOffice"]%></p>
+<%if(user){%>
 <% var count =0,rating; watched.forEach(function(movie){ %>
 <%	if(data["Title"] == movie["Movie"]){ count=1;  rating = movie["My_Rating"];%>
 <%}});%>
 <%if(count==1){ %>
 <p>You have Watched This - Your Rating : <%=rating%></p>
+<%}else{%>
+<form action="" method="POST">
+	<label for="rating">Your rating</label>
+	<input type="text" name="myrating">
+	<input type="text" name="moviename" value='<%= data["Title"]%>'  hidden>
+	<input type="text" name="language" value='<%= data["Language"]%>' hidden>
+	<input type="text" name="genre" value='<%= data["Genre"]%>' hidden>
+	<input type="text" name="runtime" value='<%= data["Runtime"]%>' hidden>
+	<input type="submit" name="add" value="Watched">
+</form>
+<%}%>
 <%}else{%>
 <form action="" method="POST">
 	<label for="rating">Your rating</label>
